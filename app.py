@@ -5,7 +5,7 @@ from typing import List
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 
-from resume_matcher import (
+from resume_ats import (
     DOMAINS,
     DATABASE_URL,
     extract_and_store_jds,
