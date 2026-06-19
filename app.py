@@ -2,14 +2,13 @@ import os
 import shutil
 import tempfile
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
 
 from resume_ats import (
     DOMAINS,
     DATABASE_URL,
     extract_and_store_jds_from_zip,
     get_model,
-    match_resume as match_resume_cli,
     match_resume_all_domains,
 )
 
@@ -73,30 +72,6 @@ async def upload_jd_zip(
             "mode": "zip",
             "message": "JD zip processed and stored.",
         }
-    finally:
-        shutil.rmtree(temp_dir, ignore_errors=True)
-
-
-@app.post("/match")
-async def match_resume(
-    resume: UploadFile = File(...),
-    domain: str = Query(..., description="One of: Software, Analyst, Core_NonTech"),
-    top_n: int = Query(10, ge=1, le=50),
-):
-    if not DATABASE_URL:
-        raise HTTPException(
-            status_code=500,
-            detail="DATABASE_URL is not configured. The matcher needs the JD database to score resumes.",
-        )
-
-    if domain not in DOMAINS:
-        raise HTTPException(status_code=400, detail=f"Unknown domain '{domain}'. Use one of: {list(DOMAINS.keys())}")
-
-    temp_dir = tempfile.mkdtemp(prefix="resume-ats-")
-    try:
-        resume_path = _save_upload(resume, temp_dir)
-        results = match_resume_cli(resume_path, domain, top_n=top_n, verbose=False)
-        return {"status": "ok", "domain": domain, "top_n": top_n, "results": results}
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
