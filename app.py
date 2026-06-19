@@ -8,6 +8,8 @@ from resume_ats import (
     DOMAINS,
     DATABASE_URL,
     extract_and_store_jds_from_zip,
+    fetch_jds_by_domain,
+    get_db_connection,
     get_model,
     match_resume_all_domains,
 )
@@ -36,6 +38,32 @@ def health():
         "status": "ok",
         "model": "sentence-transformer" if model is not None else "tf-idf-fallback",
         "domains": list(DOMAINS.keys()),
+    }
+
+
+@app.get("/debug/state")
+def debug_state():
+    model = get_model()
+    conn, cursor = get_db_connection()
+    db_connected = conn is not None
+    if cursor is not None:
+        cursor.close()
+    if conn is not None:
+        conn.close()
+
+    domain_counts = {}
+    for domain in DOMAINS:
+        try:
+            domain_counts[domain] = len(fetch_jds_by_domain(domain))
+        except Exception as exc:
+            domain_counts[domain] = f"error: {exc}"
+
+    return {
+        "database_configured": bool(DATABASE_URL),
+        "database_connected": db_connected,
+        "model": "sentence-transformer" if model is not None else "tf-idf-fallback",
+        "domains": list(DOMAINS.keys()),
+        "domain_counts": domain_counts,
     }
 
 
