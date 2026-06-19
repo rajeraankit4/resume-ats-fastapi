@@ -15,7 +15,14 @@ from .constants import (
     WEIGHT_SEMANTIC,
     WEIGHT_SKILL,
 )
-from .embeddings import classify_domain, compute_resume_domain_fit, get_model
+from .embeddings import (
+    classify_domain,
+    compute_resume_domain_fit,
+    get_model,
+    has_analyst_role_signals,
+    has_core_nontech_role_signals,
+    has_software_role_signals,
+)
 from .jd_store import (
     chunk_is_priority,
     ensure_table,
@@ -41,4 +48,3 @@ from .matching import (
     score_resume_against_jds,
     score_skill_overlap,
 )
-

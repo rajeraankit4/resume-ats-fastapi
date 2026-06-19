@@ -64,6 +64,50 @@ def has_software_role_signals(text: str) -> bool:
     return hits >= 3
 
 
+def has_analyst_role_signals(text: str) -> bool:
+    lowered = normalize_text(text)
+    role_patterns = [
+        r"\bdata analyst\b",
+        r"\bbusiness analyst\b",
+        r"\bresearch analyst\b",
+        r"\bdata science\b",
+        r"\bmachine learning\b",
+        r"\bartificial intelligence\b",
+        r"\bpower bi\b",
+        r"\btableau\b",
+        r"\bexcel\b",
+        r"\bsql\b",
+        r"\bpython\b",
+        r"\bdashboard\b",
+        r"\breporting\b",
+        r"\bforecasting\b",
+    ]
+    hits = sum(1 for pattern in role_patterns if re.search(pattern, lowered))
+    return hits >= 3
+
+
+def has_core_nontech_role_signals(text: str) -> bool:
+    lowered = normalize_text(text)
+    role_patterns = [
+        r"\bembedded\b",
+        r"\bfirmware\b",
+        r"\bhardware\b",
+        r"\belectrical\b",
+        r"\bmechanical\b",
+        r"\bmanufacturing\b",
+        r"\boperations\b",
+        r"\bsupply chain\b",
+        r"\bprocurement\b",
+        r"\baccounting\b",
+        r"\bfinance\b",
+        r"\blogistics\b",
+        r"\bhuman resources\b",
+        r"\bcustomer service\b",
+    ]
+    hits = sum(1 for pattern in role_patterns if re.search(pattern, lowered))
+    return hits >= 3
+
+
 def _get_domain_embeddings(embedder: SentenceTransformer) -> np.ndarray:
     global _cached_domain_embeddings
     if _cached_domain_embeddings is None:
@@ -106,15 +150,28 @@ def classify_domain(text: str, embedder: Optional[SentenceTransformer] = None) -
     counts = compute_domain_signal_counts(text)
     combined_scores = {}
     software_signal_boost = has_software_role_signals(text)
+    analyst_signal_boost = has_analyst_role_signals(text)
+    core_signal_boost = has_core_nontech_role_signals(text)
 
     for domain in DOMAIN_SKILL_TERMS:
         term_component = min(1.0, counts[domain] / 6)
         semantic_component = semantic_confidence if domain == semantic_domain else 0.0
         score = (0.55 * semantic_component) + (0.45 * term_component)
+
         if software_signal_boost and domain == "Software":
             score += 0.18
-        if software_signal_boost and domain == "Core_NonTech":
-            score -= 0.10
+        if analyst_signal_boost and domain == "Analyst":
+            score += 0.16
+        if core_signal_boost and domain == "Core_NonTech":
+            score += 0.14
+
+        if software_signal_boost and domain in {"Analyst", "Core_NonTech"}:
+            score -= 0.06
+        if analyst_signal_boost and domain in {"Software", "Core_NonTech"}:
+            score -= 0.04
+        if core_signal_boost and domain in {"Software", "Analyst"}:
+            score -= 0.04
+
         if domain == "Software" and counts["Software"] >= counts["Core_NonTech"] + 2:
             score += 0.08
         if domain == "Analyst" and counts["Analyst"] >= counts["Core_NonTech"] + 1:
@@ -184,4 +241,3 @@ def build_reason(overlap: set[str], semantic: float, skill_score: float, keyword
     if keyword_score < 0.20:
         parts.append("low JD keyword coverage")
     return "; ".join(parts)
-

@@ -7,17 +7,20 @@ DOMAINS = {
 DOMAIN_PROTOTYPES = {
     "Software": (
         "Software engineering backend frontend full stack QA test automation DevOps cloud "
-        "infrastructure cybersecurity application development APIs web development databases."
+        "infrastructure cybersecurity application development APIs web development databases "
+        "distributed systems scalable systems product engineering platform engineering."
     ),
     "Analyst": (
         "Data analyst business analyst research analyst data science machine learning "
         "artificial intelligence reporting dashboards business intelligence forecasting "
-        "statistics data visualization experimentation."
+        "statistics data visualization experimentation KPI analysis SQL reporting automation "
+        "decision support insights analytics."
     ),
     "Core_NonTech": (
         "Core engineering embedded systems firmware hardware electronics electrical mechanical "
         "manufacturing automotive operations procurement supply chain sales marketing HR finance "
-        "administration non-technical roles."
+        "administration non-technical roles quality assurance production maintenance service "
+        "operations logistics field support."
     ),
 }
 
@@ -28,6 +31,9 @@ DOMAIN_SKILL_TERMS = {
         "html", "css", "java", "python", "c++", "sql", "mongodb", "postgresql", "redis",
         "git", "github", "docker", "aws", "gcp", "azure", "linux", "kubernetes", "terraform",
         "jenkins", "github actions", "devops", "cloud", "microservices", "system design",
+        "rest", "restful", "graphql", "fastapi", "flask", "django", "spring boot",
+        "next.js", "nestjs", "webpack", "vite", "ci/cd", "ci cd", "observability", "api gateway",
+        "scalability", "performance tuning", "load balancing", "multithreading", "concurrency",
         "qa", "selenium", "cypress", "jest", "regression testing", "security", "cybersecurity",
         "owasp", "siem", "soc", "network security", "vulnerability assessment",
         "computer science", "information technology", "cs / it", "programming",
@@ -41,6 +47,10 @@ DOMAIN_SKILL_TERMS = {
         "scikit-learn", "tensorflow", "pytorch", "pandas", "numpy", "spark", "etl",
         "feature engineering", "llm", "transformer", "market research", "requirements gathering",
         "stakeholder management", "process improvement", "financial modelling",
+        "hypothesis testing", "a/b testing", "ab testing", "segmentation", "cohort analysis",
+        "data mining", "data wrangling", "data quality", "data governance", "metrics",
+        "olap", "data warehouse", "data lake", "business reporting", "analytics", "insights",
+        "trend analysis", "variance analysis", "root cause analysis", "forecast", "modelling",
     },
     "Core_NonTech": {
         "embedded systems", "firmware", "hardware", "electronics", "electrical", "mechanical",
@@ -50,6 +60,9 @@ DOMAIN_SKILL_TERMS = {
         "human resources", "finance", "accounting", "administration", "business development",
         "recruitment", "customer service", "admission counsellor", "logistics", "retail",
         "civil", "maintenance", "utility", "transformers", "dg sets", "hvac",
+        "production", "plant", "shop floor", "quality assurance", "quality inspection",
+        "operations management", "service engineer", "field engineer", "technical support",
+        "inventory", "dispatch", "materials", "vendor management", "sales support",
     },
 }
 
@@ -57,37 +70,57 @@ DOMAIN_INTENT_PATTERNS = {
     "Software": [
         r"\bsoftware engineer",
         r"\bsoftware development\b",
+        r"\bsystems engineering\b",
         r"\bbackend\b",
         r"\bfrontend\b",
         r"\bfull stack\b",
+        r"\bfull-stack\b",
         r"\bweb developer\b",
         r"\bapplication development\b",
+        r"\bproduct engineering\b",
         r"\bdevops\b",
+        r"\bsite reliability\b",
         r"\bcybersecurity\b",
         r"\bqa\b",
+        r"\bplatform engineering\b",
+        r"\bdistributed systems\b",
+        r"\bapi development\b",
     ],
     "Analyst": [
         r"\bdata science\b",
         r"\banalytics\b",
         r"\bdata analyst\b",
         r"\bbusiness analyst\b",
+        r"\bresearch analyst\b",
         r"\bmachine learning\b",
         r"\bartificial intelligence\b",
+        r"\bbusiness intelligence\b",
         r"\bpower bi\b",
         r"\bdashboard\b",
         r"\beda\b",
         r"\bdata analysis\b",
         r"\bdata-driven\b",
         r"\bsql queries?\b",
+        r"\binsights?\b",
+        r"\breporting\b",
+        r"\bforecasting\b",
+        r"\bmetrics\b",
+        r"\bdecision support\b",
     ],
     "Core_NonTech": [
         r"\bembedded\b",
         r"\bfirmware\b",
+        r"\bcore engineering\b",
         r"\belectrical\b",
         r"\bmechanical\b",
         r"\bmanufacturing\b",
         r"\bhardware\b",
         r"\boperations\b",
+        r"\bproduction\b",
+        r"\bquality\b",
+        r"\blogistics\b",
+        r"\bfield service\b",
+        r"\bmaintenance\b",
     ],
 }
 
@@ -138,9 +171,13 @@ PRIORITY_PATTERNS = [
     r"\bsoftware\b",
     r"\bdeveloper\b",
     r"\bengineer\b",
+    r"\banalyst\b",
     r"\bbackend\b",
     r"\bfrontend\b",
     r"\bfull[\s-]?stack\b",
+    r"\bdashboard\b",
+    r"\breporting\b",
+    r"\binsights?\b",
     r"\bapi\b",
     r"\bdatabase\b",
     r"\bpython\b",
@@ -160,6 +197,9 @@ PRIORITY_PATTERNS = [
     r"\bsecurity\b",
     r"\bembedded\b",
     r"\bfirmware\b",
+    r"\boperations\b",
+    r"\bquality\b",
+    r"\bproduction\b",
 ]
 
 RELEVANCE_QUERIES = [
@@ -167,4 +207,3 @@ RELEVANCE_QUERIES = [
     "Core job responsibilities, engineering tasks, deliverables, and day to day work.",
     "Candidate qualifications, must have requirements, preferred experience, and role expectations.",
 ]
-
