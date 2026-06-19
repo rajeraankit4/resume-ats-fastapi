@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: resume-ats-api
+    runtime: python310
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: DATABASE_URL
+        scope: run
+      - key: PYTHONUNBUFFERED
+        value: "1"
