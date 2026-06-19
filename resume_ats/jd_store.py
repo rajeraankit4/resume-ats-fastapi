@@ -3,6 +3,8 @@
 
 import os
 import re
+import zipfile
+import tempfile
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -320,3 +322,28 @@ def extract_and_store_jds(folder_path: str) -> None:
         cursor.close()
         conn.close()
 
+
+def extract_and_store_jds_from_zip(zip_path: str) -> None:
+    if not os.path.isfile(zip_path):
+        print(f"Zip file not found: {zip_path}")
+        return
+
+    with tempfile.TemporaryDirectory(prefix="resume-ats-zip-") as temp_root:
+        with zipfile.ZipFile(zip_path) as archive:
+            for member in archive.infolist():
+                if member.is_dir():
+                    continue
+
+                member_name = member.filename
+                normalized = os.path.normpath(member_name)
+                if os.path.isabs(member_name) or normalized.startswith(".."):
+                    raise ValueError(f"Unsafe path inside zip: {member_name}")
+
+                if not member_name.lower().endswith((".pdf", ".docx")):
+                    continue
+
+                target_path = os.path.join(temp_root, os.path.basename(member_name))
+                with archive.open(member) as source, open(target_path, "wb") as target:
+                    target.write(source.read())
+
+        extract_and_store_jds(temp_root)

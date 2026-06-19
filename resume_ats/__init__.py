@@ -27,6 +27,7 @@ from .jd_store import (
     chunk_is_priority,
     ensure_table,
     extract_and_store_jds,
+    extract_and_store_jds_from_zip,
     fetch_jds_by_domain,
     fetch_jds_from_folder,
     filter_relevant_chunks,
@@ -47,4 +48,5 @@ from .matching import (
     score_keyword_density,
     score_resume_against_jds,
     score_skill_overlap,
+    SUMMARY_TOP_K,
 )

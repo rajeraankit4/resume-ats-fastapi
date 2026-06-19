@@ -164,7 +164,10 @@ def match_resume(
     return score_resume_against_jds(resume_text, domain, jds, top_n=top_n)
 
 
-def match_resume_all_domains(resume_path: str, top_n_per_domain: int = 3) -> List[Dict]:
+SUMMARY_TOP_K = 3
+
+
+def match_resume_all_domains(resume_path: str) -> List[Dict]:
     resume_text = get_text_from_file(resume_path)
     embedder = get_model()
     if not resume_text:
@@ -172,12 +175,12 @@ def match_resume_all_domains(resume_path: str, top_n_per_domain: int = 3) -> Lis
 
     summary_rows = []
     for domain, label in DOMAINS.items():
-        results = match_resume(resume_path, domain, top_n=top_n_per_domain, verbose=False)
+        results = match_resume(resume_path, domain, top_n=SUMMARY_TOP_K, verbose=False)
         domain_fit = round(compute_resume_domain_fit(resume_text, domain, embedder) * 100, 1)
         if results:
             top_score = results[0]["ats_score"]
             top_file = results[0]["file_name"]
-            top_matches = results[: min(3, len(results))]
+            top_matches = results[: min(SUMMARY_TOP_K, len(results))]
             avg_top = round(sum(item["ats_score"] for item in top_matches) / len(top_matches), 1)
             hits = len(results)
         else:
@@ -217,7 +220,6 @@ def match_resume_against_jds(
 def match_resume_all_domains_against_jds(
     resume_path: str,
     jds: List[Dict],
-    top_n_per_domain: int = 3,
 ) -> List[Dict]:
     resume_text = get_text_from_file(resume_path)
     embedder = get_model()
@@ -226,12 +228,12 @@ def match_resume_all_domains_against_jds(
 
     summary_rows = []
     for domain, label in DOMAINS.items():
-        results = score_resume_against_jds(resume_text, domain, jds, top_n=top_n_per_domain)
+        results = score_resume_against_jds(resume_text, domain, jds, top_n=SUMMARY_TOP_K)
         domain_fit = round(compute_resume_domain_fit(resume_text, domain, embedder) * 100, 1)
         if results:
             top_score = results[0]["ats_score"]
             top_file = results[0]["file_name"]
-            top_matches = results[: min(3, len(results))]
+            top_matches = results[: min(SUMMARY_TOP_K, len(results))]
             avg_top = round(sum(item["ats_score"] for item in top_matches) / len(top_matches), 1)
             hits = len(results)
         else:
@@ -256,4 +258,3 @@ def match_resume_all_domains_against_jds(
 
     summary_rows.sort(key=lambda item: (item["overall_score"], item["domain_fit"], item["avg_top"]), reverse=True)
     return summary_rows
-

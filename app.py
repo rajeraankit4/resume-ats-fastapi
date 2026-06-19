@@ -1,14 +1,13 @@
 import os
 import shutil
 import tempfile
-from typing import List
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 
 from resume_ats import (
     DOMAINS,
     DATABASE_URL,
-    extract_and_store_jds,
+    extract_and_store_jds_from_zip,
     get_model,
     match_resume as match_resume_cli,
     match_resume_all_domains,
@@ -49,21 +48,33 @@ def list_domains():
     ]
 
 
-@app.post("/jds/ingest")
-async def ingest_jds(
-    folder_path: str = Query("./extracted/JDs"),
+@app.post("/jds/upload-zip")
+async def upload_jd_zip(
+    zip_file: UploadFile = File(...),
 ):
     if not DATABASE_URL:
         raise HTTPException(
             status_code=500,
             detail="DATABASE_URL is not configured. Set it in your environment or .env file before ingesting JDs.",
         )
+    if not zip_file.filename or not zip_file.filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="zip_file must be a .zip archive")
 
-    if not os.path.isdir(folder_path):
-        raise HTTPException(status_code=400, detail=f"Folder not found: {folder_path}")
+    temp_dir = tempfile.mkdtemp(prefix="resume-ats-jd-zip-")
+    zip_path = os.path.join(temp_dir, os.path.basename(zip_file.filename))
+    try:
+        with open(zip_path, "wb") as out_file:
+            shutil.copyfileobj(zip_file.file, out_file)
+        zip_file.file.seek(0)
 
-    extract_and_store_jds(folder_path)
-    return {"status": "ok", "mode": "folder", "folder_path": folder_path, "message": "JD files processed and stored."}
+        extract_and_store_jds_from_zip(zip_path)
+        return {
+            "status": "ok",
+            "mode": "zip",
+            "message": "JD zip processed and stored.",
+        }
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 @app.post("/match")
@@ -93,7 +104,6 @@ async def match_resume(
 @app.post("/match/all-domains")
 async def match_all_domains(
     resume: UploadFile = File(...),
-    top_n_per_domain: int = Query(3, ge=1, le=10),
 ):
     if not DATABASE_URL:
         raise HTTPException(
@@ -104,10 +114,9 @@ async def match_all_domains(
     temp_dir = tempfile.mkdtemp(prefix="resume-ats-")
     try:
         resume_path = _save_upload(resume, temp_dir)
-        results = match_resume_all_domains(resume_path, top_n_per_domain=top_n_per_domain)
+        results = match_resume_all_domains(resume_path)
         return {
             "status": "ok",
-            "top_n_per_domain": top_n_per_domain,
             "results": results,
         }
     finally:
