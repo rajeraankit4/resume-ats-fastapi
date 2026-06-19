@@ -6,7 +6,6 @@ from typing import Optional, Tuple
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from .constants import DOMAIN_INTENT_PATTERNS, DOMAIN_PROTOTYPES, DOMAIN_SKILL_TERMS
@@ -25,10 +24,13 @@ def get_model() -> Optional[SentenceTransformer]:
         return None
     _model_load_attempted = True
     try:
-        _model = SentenceTransformer("all-MiniLM-L6-v2", local_files_only=True)
+        try:
+            _model = SentenceTransformer("all-MiniLM-L6-v2", local_files_only=True)
+        except Exception:
+            _model = SentenceTransformer("all-MiniLM-L6-v2")
         return _model
     except Exception as e:
-        print(f"SentenceTransformer unavailable, falling back to TF-IDF: {e}")
+        print(f"model not available: {e}")
         return None
 
 
@@ -128,24 +130,11 @@ def _classify_semantic(text: str, embedder: SentenceTransformer) -> Tuple[str, f
     return domain_keys[top_idx], top_score, secondary
 
 
-def _classify_tfidf(text: str) -> Tuple[str, float, Optional[str]]:
-    domain_keys = list(DOMAIN_PROTOTYPES.keys())
-    corpus = [text] + list(DOMAIN_PROTOTYPES.values())
-    tfidf = TfidfVectorizer(stop_words="english", ngram_range=(1, 2))
-    matrix = tfidf.fit_transform(corpus)
-    sims = cosine_similarity(matrix[0], matrix[1:])[0]
-    sorted_idx = np.argsort(sims)[::-1]
-    top_idx, second_idx = int(sorted_idx[0]), int(sorted_idx[1])
-    top_score = float(sims[top_idx])
-    secondary = domain_keys[second_idx] if float(sims[second_idx]) > 0.05 else None
-    return domain_keys[top_idx], top_score, secondary
-
-
 def classify_domain(text: str, embedder: Optional[SentenceTransformer] = None) -> Tuple[str, float, Optional[str]]:
-    if embedder is not None:
-        semantic_domain, semantic_confidence, semantic_secondary = _classify_semantic(text, embedder)
-    else:
-        semantic_domain, semantic_confidence, semantic_secondary = _classify_tfidf(text)
+    if embedder is None:
+        raise RuntimeError("model not available")
+
+    semantic_domain, semantic_confidence, semantic_secondary = _classify_semantic(text, embedder)
 
     counts = compute_domain_signal_counts(text)
     combined_scores = {}
@@ -192,6 +181,9 @@ def classify_domain(text: str, embedder: Optional[SentenceTransformer] = None) -
 
 
 def compute_resume_domain_fit(resume_text: str, domain: str, embedder: Optional[SentenceTransformer]) -> float:
+    if embedder is None:
+        raise RuntimeError("model not available")
+
     normalized_resume = normalize_text(resume_text)
     domain_skills = extract_skills(resume_text, DOMAIN_SKILL_TERMS[domain])
     target_component = min(1.0, len(domain_skills) / 6)
@@ -201,15 +193,9 @@ def compute_resume_domain_fit(resume_text: str, domain: str, embedder: Optional[
     intent_hits = sum(1 for pattern in DOMAIN_INTENT_PATTERNS[domain] if re.search(pattern, normalized_resume))
     intent_component = min(1.0, intent_hits / 4)
 
-    if embedder is not None:
-        resume_vec = embedder.encode(normalized_resume, normalize_embeddings=True).reshape(1, -1)
-        domain_vec = embedder.encode(DOMAIN_PROTOTYPES[domain], normalize_embeddings=True).reshape(1, -1)
-        semantic_component = float(cosine_similarity(resume_vec, domain_vec)[0][0])
-    else:
-        matrix = TfidfVectorizer(stop_words="english", ngram_range=(1, 2)).fit_transform(
-            [normalized_resume, DOMAIN_PROTOTYPES[domain]]
-        )
-        semantic_component = float(cosine_similarity(matrix[0], matrix[1])[0][0])
+    resume_vec = embedder.encode(normalized_resume, normalize_embeddings=True).reshape(1, -1)
+    domain_vec = embedder.encode(DOMAIN_PROTOTYPES[domain], normalize_embeddings=True).reshape(1, -1)
+    semantic_component = float(cosine_similarity(resume_vec, domain_vec)[0][0])
 
     fit = (0.45 * target_component) + (0.25 * semantic_component) + (0.30 * intent_component)
     if domain == "Core_NonTech" and software_component >= 6 and analyst_component <= 2 and core_component <= 2:

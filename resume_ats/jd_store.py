@@ -10,7 +10,6 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import psycopg2
 from sentence_transformers import SentenceTransformer, util
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from .config import DATABASE_URL
@@ -62,18 +61,13 @@ def filter_relevant_chunks(chunks: List[str], embedder: Optional[SentenceTransfo
     if not chunks:
         return []
 
-    if embedder is not None:
-        query_embs = embedder.encode(RELEVANCE_QUERIES, convert_to_tensor=True)
-        chunk_embs = embedder.encode(chunks, convert_to_tensor=True)
-        cos_scores = util.cos_sim(chunk_embs, query_embs)
-        max_scores = cos_scores.max(dim=1).values.cpu().numpy()
-    else:
-        tfidf = TfidfVectorizer(stop_words="english", ngram_range=(1, 2))
-        matrix = tfidf.fit_transform(chunks + RELEVANCE_QUERIES)
-        chunk_matrix = matrix[: len(chunks)]
-        query_matrix = matrix[len(chunks):]
-        cos_scores = cosine_similarity(chunk_matrix, query_matrix)
-        max_scores = cos_scores.max(axis=1)
+    if embedder is None:
+        raise RuntimeError("model not available")
+
+    query_embs = embedder.encode(RELEVANCE_QUERIES, convert_to_tensor=True)
+    chunk_embs = embedder.encode(chunks, convert_to_tensor=True)
+    cos_scores = util.cos_sim(chunk_embs, query_embs)
+    max_scores = cos_scores.max(dim=1).values.cpu().numpy()
 
     mean_score = float(np.mean(max_scores))
     std_score = float(np.std(max_scores))
@@ -105,13 +99,11 @@ def filter_relevant_chunks(chunks: List[str], embedder: Optional[SentenceTransfo
     scored.sort(key=lambda x: x[1], reverse=True)
     texts = [t for t, _ in scored]
 
-    if embedder is not None:
-        embs = embedder.encode(texts, convert_to_tensor=True)
-        sim_matrix = util.cos_sim(embs, embs).cpu().numpy()
-    else:
-        tfidf2 = TfidfVectorizer(stop_words="english", ngram_range=(1, 2))
-        embs2 = tfidf2.fit_transform(texts)
-        sim_matrix = cosine_similarity(embs2, embs2)
+    if embedder is None:
+        raise RuntimeError("model not available")
+
+    embs = embedder.encode(texts, convert_to_tensor=True)
+    sim_matrix = util.cos_sim(embs, embs).cpu().numpy()
 
     skipped: set = set()
     final_chunks: List[Tuple[str, float]] = []
@@ -280,6 +272,9 @@ def extract_and_store_jds(folder_path: str) -> None:
 
     ensure_table(cursor, conn)
     embedder = get_model()
+    if embedder is None:
+        print("model not available")
+        return
     files = [f for f in os.listdir(folder_path) if f.lower().endswith((".pdf", ".docx"))]
     if not files:
         print(f"No PDF or DOCX files found in {folder_path}")

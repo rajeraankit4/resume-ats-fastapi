@@ -5,7 +5,6 @@ from typing import Dict, List, Optional, Set
 
 import re
 from sentence_transformers import SentenceTransformer
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from .constants import (
@@ -28,20 +27,17 @@ def compute_semantic_scores(
     jds: List[Dict],
     embedder: Optional[SentenceTransformer],
 ) -> List[float]:
-    if embedder is not None:
-        resume_vec = embedder.encode(resume_text, normalize_embeddings=True).reshape(1, -1)
-        scores = []
-        for jd in jds:
-            jd_vec = parse_embedding(jd.get("embedding"))
-            if jd_vec is None:
-                jd_vec = embedder.encode(jd["cleaned_text"], normalize_embeddings=True).reshape(1, -1)
-            scores.append(float(cosine_similarity(resume_vec, jd_vec)[0][0]))
-        return scores
+    if embedder is None:
+        raise RuntimeError("model not available")
 
-    corpus = [resume_text] + [jd["cleaned_text"] or jd["jd_text"] or jd["file_name"] for jd in jds]
-    matrix = TfidfVectorizer(stop_words="english", ngram_range=(1, 2)).fit_transform(corpus)
-    resume_vec = matrix[0]
-    return [float(cosine_similarity(resume_vec, matrix[i + 1])[0][0]) for i in range(len(jds))]
+    resume_vec = embedder.encode(resume_text, normalize_embeddings=True).reshape(1, -1)
+    scores = []
+    for jd in jds:
+        jd_vec = parse_embedding(jd.get("embedding"))
+        if jd_vec is None:
+            jd_vec = embedder.encode(jd["cleaned_text"], normalize_embeddings=True).reshape(1, -1)
+        scores.append(float(cosine_similarity(resume_vec, jd_vec)[0][0]))
+    return scores
 
 
 def score_skill_overlap(resume_skills: Set[str], jd_skills: Set[str]) -> float:
@@ -104,6 +100,8 @@ def score_resume_against_jds(
         return []
 
     embedder = embedder if embedder is not None else get_model()
+    if embedder is None:
+        raise RuntimeError("model not available")
     skill_terms = DOMAIN_SKILL_TERMS[domain]
     resume_skills = extract_skills(resume_text, skill_terms)
     semantic_scores = compute_semantic_scores(resume_text, jds, embedder)
@@ -172,6 +170,8 @@ def match_resume_all_domains(resume_path: str) -> List[Dict]:
     embedder = get_model()
     if not resume_text:
         return []
+    if embedder is None:
+        raise RuntimeError("model not available")
 
     summary_rows = []
     for domain, label in DOMAINS.items():

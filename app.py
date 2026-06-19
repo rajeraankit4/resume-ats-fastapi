@@ -36,7 +36,7 @@ def health():
     model = get_model()
     return {
         "status": "ok",
-        "model": "sentence-transformer" if model is not None else "tf-idf-fallback",
+        "model": "sentence-transformer" if model is not None else "model not available",
         "domains": list(DOMAINS.keys()),
     }
 
@@ -61,7 +61,7 @@ def debug_state():
     return {
         "database_configured": bool(DATABASE_URL),
         "database_connected": db_connected,
-        "model": "sentence-transformer" if model is not None else "tf-idf-fallback",
+        "model": "sentence-transformer" if model is not None else "model not available",
         "domains": list(DOMAINS.keys()),
         "domain_counts": domain_counts,
     }
@@ -79,6 +79,10 @@ def list_domains():
 async def upload_jd_zip(
     zip_file: UploadFile = File(...),
 ):
+    model = get_model()
+    if model is None:
+        raise HTTPException(status_code=503, detail="model not available")
+
     if not DATABASE_URL:
         raise HTTPException(
             status_code=500,
@@ -108,6 +112,10 @@ async def upload_jd_zip(
 async def match_all_domains(
     resume: UploadFile = File(...),
 ):
+    model = get_model()
+    if model is None:
+        raise HTTPException(status_code=503, detail="model not available")
+
     if not DATABASE_URL:
         raise HTTPException(
             status_code=500,
