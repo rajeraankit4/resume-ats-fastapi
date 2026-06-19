@@ -1,3 +1,6 @@
+# Extracts Job Descriptions from PDF/DOCX files, filters relevant content,
+# classifies domains, generates embeddings, and stores results in PostgreSQL.
+
 import os
 import re
 from typing import Dict, List, Optional, Tuple

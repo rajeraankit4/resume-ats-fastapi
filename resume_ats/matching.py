@@ -1,3 +1,6 @@
+# Matches resumes against stored Job Descriptions using semantic similarity,
+# skill overlap, and keyword coverage to generate ATS-style rankings.
+
 from typing import Dict, List, Optional, Set
 
 import re

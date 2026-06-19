@@ -1,3 +1,6 @@
+# Classifies Job Descriptions into domains (Software, Analyst, Core_NonTech)
+# using semantic similarity, skill matching, and rule-based scoring.
+
 import re
 from typing import Optional, Tuple
 
