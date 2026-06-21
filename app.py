@@ -3,6 +3,7 @@ import shutil
 import tempfile
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 
 from resume_ats import (
     DOMAINS,
@@ -21,6 +22,19 @@ app = FastAPI(
     version="1.0.0",
 )
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def _save_upload(upload: UploadFile, folder: str) -> str:
     filename = os.path.basename(upload.filename or "upload.bin")
@@ -126,9 +140,10 @@ async def match_all_domains(
     try:
         resume_path = _save_upload(resume, temp_dir)
         results = match_resume_all_domains(resume_path)
-        return {
-            "status": "ok",
-            "results": results,
-        }
+        filtered = [
+            {"domain": r["domain"], "domain_fit": r["domain_fit"], "overall_score": r["overall_score"]}
+            for r in results
+        ]
+        return {"status": "ok", "results": filtered}
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
