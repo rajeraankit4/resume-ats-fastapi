@@ -232,6 +232,48 @@ def fetch_jds_by_domain(domain: str) -> List[Dict]:
         cursor.close()
         conn.close()
 
+def fetch_all_jds() -> List[Dict]:
+    conn, cursor = get_db_connection()
+
+    if not conn:
+        return []
+
+    try:
+        cursor.execute(
+            """
+            SELECT file_name,
+                   jd_text,
+                   cleaned_text,
+                   embedding,
+                   domain,
+                   domain_confidence,
+                   domain_secondary
+            FROM job_descriptions
+            """
+        )
+
+        rows = cursor.fetchall()
+
+        return [
+            {
+                "file_name": row[0],
+                "jd_text": row[1] or "",
+                "cleaned_text": row[2] or row[1] or "",
+                "embedding": row[3],
+                "domain": row[4],
+                "domain_confidence": row[5],
+                "domain_secondary": row[6],
+            }
+            for row in rows
+        ]
+
+    except Exception as e:
+        print(f"DB fetch error: {e}")
+        return []
+
+    finally:
+        cursor.close()
+        conn.close()
 
 def fetch_jds_from_folder(folder_path: str) -> List[Dict]:
     if not os.path.isdir(folder_path):

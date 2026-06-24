@@ -18,7 +18,7 @@ from .constants import (
     WEIGHT_SKILL,
 )
 from .embeddings import build_reason, compute_resume_domain_fit, extract_skills, get_model
-from .jd_store import fetch_jds_by_domain, fetch_jds_from_folder
+from .jd_store import fetch_all_jds, fetch_jds_by_domain, fetch_jds_from_folder
 from .text_utils import get_text_from_file, parse_embedding
 
 
@@ -39,6 +39,56 @@ def compute_semantic_scores(
         scores.append(float(cosine_similarity(resume_vec, jd_vec)[0][0]))
     return scores
 
+def retrieve_top_jds_global(
+    resume_text: str,
+    top_k: int = 50,
+    embedder: Optional[SentenceTransformer] = None,
+) -> List[Dict]:
+
+    if embedder is None:
+        embedder = get_model()
+
+    if embedder is None:
+        raise RuntimeError("model not available")
+
+    all_jds = fetch_all_jds()
+
+    if not all_jds:
+        return []
+
+    semantic_scores = compute_semantic_scores(
+        resume_text,
+        all_jds,
+        embedder,
+    )
+
+    retrieved = []
+
+    for jd, score in zip(all_jds, semantic_scores):
+        retrieved.append(
+            {
+                **jd,
+                "retrieval_score": score,
+            }
+        )
+
+    retrieved.sort(
+        key=lambda x: x["retrieval_score"],
+        reverse=True,
+    )
+
+    return retrieved[:top_k]
+
+def filter_jds_for_domain(
+    jds: List[Dict],
+    domain: str,
+) -> List[Dict]:
+
+    return [
+        jd
+        for jd in jds
+        if jd_matches_domain(domain, jd)
+    ]
 
 def score_skill_overlap(resume_skills: Set[str], jd_skills: Set[str]) -> float:
     if not jd_skills:
@@ -166,30 +216,69 @@ SUMMARY_TOP_K = 3
 
 
 def match_resume_all_domains(resume_path: str) -> List[Dict]:
+
     resume_text = get_text_from_file(resume_path)
     embedder = get_model()
+
     if not resume_text:
         return []
     if embedder is None:
         raise RuntimeError("model not available")
 
+    # STEP 1: GLOBAL RETRIEVAL (ONLY ONCE)
+    retrieved_jds = retrieve_top_jds_global(
+        resume_text,
+        top_k=50,
+        embedder=embedder,
+    )
+
     summary_rows = []
+
+    # STEP 2: DOMAIN-WISE PROCESSING (NO DB CALLS HERE)
     for domain, label in DOMAINS.items():
-        results = match_resume(resume_path, domain, top_n=SUMMARY_TOP_K, verbose=False)
-        domain_fit = round(compute_resume_domain_fit(resume_text, domain, embedder) * 100, 1)
+
+        domain_jds = filter_jds_for_domain(
+            retrieved_jds,
+            domain
+        )
+
+        results = score_resume_against_jds(
+            resume_text,
+            domain,
+            domain_jds,
+            top_n=SUMMARY_TOP_K,
+            embedder=embedder,
+        )
+
+        domain_fit = round(
+            compute_resume_domain_fit(
+                resume_text,
+                domain,
+                embedder
+            ) * 100,
+            1
+        )
+
         if results:
             top_score = results[0]["ats_score"]
             top_file = results[0]["file_name"]
-            top_matches = results[: min(SUMMARY_TOP_K, len(results))]
-            avg_top = round(sum(item["ats_score"] for item in top_matches) / len(top_matches), 1)
+            avg_top = round(
+                sum(r["ats_score"] for r in results) / len(results),
+                1
+            )
             hits = len(results)
         else:
             top_score = 0.0
-            avg_top = 0.0
             top_file = "-"
+            avg_top = 0.0
             hits = 0
 
-        overall_score = round((DOMAIN_FIT_WEIGHT * domain_fit) + (DOMAIN_BUCKET_WEIGHT * avg_top), 1)
+        overall_score = round(
+            (DOMAIN_FIT_WEIGHT * domain_fit) +
+            (DOMAIN_BUCKET_WEIGHT * avg_top),
+            1
+        )
+
         summary_rows.append(
             {
                 "domain": domain,
@@ -203,5 +292,13 @@ def match_resume_all_domains(resume_path: str) -> List[Dict]:
             }
         )
 
-    summary_rows.sort(key=lambda item: (item["overall_score"], item["domain_fit"], item["avg_top"]), reverse=True)
+    summary_rows.sort(
+        key=lambda x: (
+            x["overall_score"],
+            x["domain_fit"],
+            x["avg_top"]
+        ),
+        reverse=True
+    )
+
     return summary_rows

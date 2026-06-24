@@ -36,6 +36,7 @@ from .jd_store import (
     is_probable_jd,
     save_to_database,
     split_into_logical_chunks,
+    fetch_all_jds,
 )
 from .matching import (
     compute_ats_score,
