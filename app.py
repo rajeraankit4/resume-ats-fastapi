@@ -1,9 +1,13 @@
+from dotenv import load_dotenv
+
+load_dotenv()
 import os
 import shutil
 import tempfile
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from resume_ats.rag import run_rag_analysis_from_retrieval
 
 from resume_ats import (
     DOMAINS,
@@ -22,9 +26,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-from dotenv import load_dotenv
-
-load_dotenv()
 
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",")
 
@@ -139,11 +140,27 @@ async def match_all_domains(
     temp_dir = tempfile.mkdtemp(prefix="resume-ats-")
     try:
         resume_path = _save_upload(resume, temp_dir)
-        results = match_resume_all_domains(resume_path)
+        result = match_resume_all_domains(resume_path)
+
+        ats_results = result["summary_rows"]
+
         filtered = [
-            {"domain": r["domain"], "domain_fit": r["domain_fit"], "overall_score": r["overall_score"]}
-            for r in results
+            {
+                "domain": r["domain"],
+                "domain_fit": r["domain_fit"],
+                "overall_score": r["overall_score"]
+            }
+            for r in ats_results
         ]
-        return {"status": "ok", "results": filtered}
+
+        rag_response = run_rag_analysis_from_retrieval(
+            result["resume_text"],
+            result["retrieved_jds"],
+        )
+        return {
+            "status": "ok",
+            "results": filtered,
+            "ai_analysis": rag_response,
+        }
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)

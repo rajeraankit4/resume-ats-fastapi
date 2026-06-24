@@ -2,9 +2,9 @@ from typing import Dict, List
 
 from .embeddings import get_model
 from .matching import retrieve_top_jds_global
+from .groq_service import generate_response
 
-
-RAG_TOP_K = 5
+RAG_TOP_K = 3
 
 
 def retrieve_context_for_rag(
@@ -74,51 +74,39 @@ def build_resume_analysis_prompt(
     """
 
     return f"""
-You are an expert ATS evaluator, recruiter, and career advisor.
+        You are an expert resume reviewer.
 
-Analyze the resume against the retrieved job descriptions.
+        Resume:
+        {resume_text}
 
-========================
-RESUME
-========================
+        Relevant Job Descriptions:
+        {rag_context}
 
-{resume_text}
+        Task:
+        Identify only the most important improvements required in the resume based on the job descriptions.
 
-========================
-RETRIEVED JOB DESCRIPTIONS
-========================
+        Return ONLY valid JSON in this format:
 
-{rag_context}
+        {{
+        "suggestions": [
+            "",
+            "",
+            "",
+            "",
+            ""
+        ]
+        }}
 
-========================
-TASKS
-========================
-
-1. Identify the most suitable job roles.
-2. Explain why the resume matches these roles.
-3. Identify missing skills and skill gaps.
-4. Suggest resume improvements.
-5. Recommend learning areas to improve employability.
-6. Provide an overall assessment of job readiness.
-
-Return a structured report.
-"""
-
-
-def prepare_rag_prompt(
-    resume_text: str,
-) -> str:
-    """
-    Main RAG entry point.
-
-    Resume
-        ↓
-    Retrieval
-        ↓
-    Context Building
-        ↓
-    Prompt
-    """
+        Rules:
+        - Maximum 5 suggestions.
+        - Each suggestion must be one short sentence.
+        - Focus on missing skills, resume gaps, and improvement areas.
+        - Do not mention strengths.
+        - Do not mention suitable roles.
+        - Do not explain reasoning.
+        - Do not use markdown.
+        - Return JSON only.
+        """
 
     retrieved_jds = retrieve_context_for_rag(
         resume_text=resume_text,
@@ -133,3 +121,31 @@ def prepare_rag_prompt(
         resume_text=resume_text,
         rag_context=rag_context,
     )
+
+def run_rag_analysis(
+    resume_text: str,
+) -> str:
+
+    prompt = prepare_rag_prompt(
+        resume_text
+    )
+
+    return generate_response(
+        prompt
+    )
+
+def run_rag_analysis_from_retrieval(
+    resume_text: str,
+    retrieved_jds: List[Dict],
+) -> str:
+
+    rag_context = build_rag_context(
+        retrieved_jds[:RAG_TOP_K]
+    )
+
+    prompt = build_resume_analysis_prompt(
+        resume_text,
+        rag_context,
+    )
+
+    return generate_response(prompt)

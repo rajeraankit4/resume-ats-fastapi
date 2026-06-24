@@ -279,4 +279,8 @@ def match_resume_all_domains(resume_path: str) -> List[Dict]:
         reverse=True
     )
 
-    return summary_rows
+    return {
+        "summary_rows": summary_rows,
+        "retrieved_jds": retrieved_jds,
+        "resume_text": resume_text,
+    }
