@@ -18,7 +18,7 @@ from .constants import (
     WEIGHT_SKILL,
 )
 from .embeddings import build_reason, compute_resume_domain_fit, extract_skills, get_model
-from .jd_store import fetch_all_jds, fetch_jds_by_domain, fetch_jds_from_folder
+from .jd_store import fetch_all_jds
 from .text_utils import get_text_from_file, parse_embedding
 
 
@@ -154,10 +154,13 @@ def score_resume_against_jds(
         raise RuntimeError("model not available")
     skill_terms = DOMAIN_SKILL_TERMS[domain]
     resume_skills = extract_skills(resume_text, skill_terms)
-    semantic_scores = compute_semantic_scores(resume_text, jds, embedder)
     results = []
 
-    for jd, semantic in zip(jds, semantic_scores):
+    for jd in jds:
+        semantic = jd.get(
+            "retrieval_score",
+            0.0
+        )
         if not jd_matches_domain(domain, jd):
             continue
         if semantic < SEMANTIC_RELEVANCE_GATE:
