@@ -187,31 +187,6 @@ def score_resume_against_jds(
     return results[:top_n]
 
 
-def match_resume(
-    resume_path: str,
-    domain: str,
-    top_n: int = 10,
-    jd_folder: str = "./extracted/JDs",
-    verbose: bool = True,
-) -> List[Dict]:
-    if domain not in DOMAINS:
-        if verbose:
-            print(f"Unknown domain '{domain}'. Choose from: {list(DOMAINS.keys())}")
-        return []
-
-    resume_text = get_text_from_file(resume_path)
-    if not resume_text:
-        if verbose:
-            print("ERROR: Could not extract text from resume.")
-        return []
-
-    jds = fetch_jds_by_domain(domain)
-    if not jds:
-        jds = fetch_jds_from_folder(jd_folder)
-
-    return score_resume_against_jds(resume_text, domain, jds, top_n=top_n)
-
-
 SUMMARY_TOP_K = 3
 
 
