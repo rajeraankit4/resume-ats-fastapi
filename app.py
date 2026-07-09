@@ -27,6 +27,7 @@ app = FastAPI(
 )
 
 
+APP_VERSION = os.getenv("APP_VERSION", "unknown")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",")
 
 app.add_middleware(
@@ -51,6 +52,7 @@ def health():
     model = get_model()
     return {
         "status": "ok",
+        "version": APP_VERSION,
         "model": "sentence-transformer" if model is not None else "model not available",
         "domains": list(DOMAINS.keys()),
     }
