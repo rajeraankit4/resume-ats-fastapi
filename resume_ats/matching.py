@@ -5,7 +5,6 @@ from typing import Dict, List, Optional, Set
 
 import re
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
 
 from .constants import (
     DOMAIN_BUCKET_WEIGHT,
@@ -18,26 +17,8 @@ from .constants import (
     WEIGHT_SKILL,
 )
 from .embeddings import build_reason, compute_resume_domain_fit, extract_skills, get_model
-from .jd_store import fetch_all_jds
-from .text_utils import get_text_from_file, parse_embedding
-
-
-def compute_semantic_scores(
-    resume_text: str,
-    jds: List[Dict],
-    embedder: Optional[SentenceTransformer],
-) -> List[float]:
-    if embedder is None:
-        raise RuntimeError("model not available")
-
-    resume_vec = embedder.encode(resume_text, normalize_embeddings=True).reshape(1, -1)
-    scores = []
-    for jd in jds:
-        jd_vec = parse_embedding(jd.get("embedding"))
-        if jd_vec is None:
-            jd_vec = embedder.encode(jd["cleaned_text"], normalize_embeddings=True).reshape(1, -1)
-        scores.append(float(cosine_similarity(resume_vec, jd_vec)[0][0]))
-    return scores
+from .jd_store import retrieve_top_jds_by_vector
+from .text_utils import get_text_from_file
 
 def retrieve_top_jds_global(
     resume_text: str,
@@ -51,33 +32,15 @@ def retrieve_top_jds_global(
     if embedder is None:
         raise RuntimeError("model not available")
 
-    all_jds = fetch_all_jds()
-
-    if not all_jds:
-        return []
-
-    semantic_scores = compute_semantic_scores(
+    resume_embedding = embedder.encode(
         resume_text,
-        all_jds,
-        embedder,
+        normalize_embeddings=True,
+    ).tolist()
+
+    return retrieve_top_jds_by_vector(
+        resume_embedding,
+        top_k,
     )
-
-    retrieved = []
-
-    for jd, score in zip(all_jds, semantic_scores):
-        retrieved.append(
-            {
-                **jd,
-                "retrieval_score": score,
-            }
-        )
-
-    retrieved.sort(
-        key=lambda x: x["retrieval_score"],
-        reverse=True,
-    )
-
-    return retrieved[:top_k]
 
 def filter_jds_for_domain(
     jds: List[Dict],

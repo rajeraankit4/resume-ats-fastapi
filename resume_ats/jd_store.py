@@ -9,6 +9,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import psycopg2
+from pgvector import Vector
+from pgvector.psycopg2 import register_vector
 from sentence_transformers import SentenceTransformer, util
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -26,6 +28,7 @@ def get_db_connection():
         return None, None
     try:
         conn = psycopg2.connect(DATABASE_URL)
+        register_vector(conn)
         cursor = conn.cursor()
         return conn, cursor
     except Exception as e:
@@ -126,7 +129,7 @@ def ensure_table(cursor, conn) -> None:
             file_name          VARCHAR(255) UNIQUE NOT NULL,
             jd_text            TEXT,
             cleaned_text       TEXT,
-            embedding          FLOAT[],
+            embedding          VECTOR(384),
             domain             VARCHAR(60),
             domain_confidence  FLOAT,
             domain_secondary   VARCHAR(60),
@@ -340,7 +343,10 @@ def extract_and_store_jds(folder_path: str) -> None:
             domain, confidence, secondary = classify_domain(classification_input, embedder=embedder)
 
             if embedder is not None:
-                final_embedding: List[float] = embedder.encode(cleaned_text).tolist()
+                final_embedding = embedder.encode(
+                    cleaned_text,
+                    normalize_embeddings=True,
+                ).tolist()
             else:
                 final_embedding = []
 
@@ -384,3 +390,58 @@ def extract_and_store_jds_from_zip(zip_path: str) -> None:
                     target.write(source.read())
 
         extract_and_store_jds(temp_root)
+
+
+def retrieve_top_jds_by_vector(
+    resume_embedding,
+    top_k: int = 50,
+):
+    conn, cursor = get_db_connection()
+
+    if not conn:
+        return []
+
+    try:
+        resume_embedding = Vector(resume_embedding)
+
+        cursor.execute(
+            """
+            SELECT
+                file_name,
+                jd_text,
+                cleaned_text,
+                embedding,
+                domain,
+                domain_confidence,
+                domain_secondary,
+                1 - (embedding <=> %s) AS retrieval_score
+            FROM job_descriptions
+            ORDER BY embedding <=> %s
+            LIMIT %s
+            """,
+            (
+                resume_embedding,
+                resume_embedding,
+                top_k,
+            ),
+        )
+
+        rows = cursor.fetchall()
+
+        return [
+            {
+                "file_name": row[0],
+                "jd_text": row[1] or "",
+                "cleaned_text": row[2] or row[1] or "",
+                "embedding": row[3],
+                "domain": row[4],
+                "domain_confidence": row[5],
+                "domain_secondary": row[6],
+                "retrieval_score": row[7],
+            }
+            for row in rows
+        ]
+
+    finally:
+        cursor.close()
+        conn.close()

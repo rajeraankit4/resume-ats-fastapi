@@ -40,7 +40,6 @@ from .jd_store import (
 )
 from .matching import (
     compute_ats_score,
-    compute_semantic_scores,
     jd_matches_domain,
     match_resume_all_domains,
     score_keyword_density,
