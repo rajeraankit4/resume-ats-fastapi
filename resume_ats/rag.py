@@ -108,32 +108,6 @@ def build_resume_analysis_prompt(
         - Return JSON only.
         """
 
-    retrieved_jds = retrieve_context_for_rag(
-        resume_text=resume_text,
-        top_k=RAG_TOP_K,
-    )
-
-    rag_context = build_rag_context(
-        retrieved_jds
-    )
-
-    return build_resume_analysis_prompt(
-        resume_text=resume_text,
-        rag_context=rag_context,
-    )
-
-def run_rag_analysis(
-    resume_text: str,
-) -> str:
-
-    prompt = prepare_rag_prompt(
-        resume_text
-    )
-
-    return generate_response(
-        prompt
-    )
-
 def run_rag_analysis_from_retrieval(
     resume_text: str,
     retrieved_jds: List[Dict],
